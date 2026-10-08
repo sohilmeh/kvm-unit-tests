@@ -209,8 +209,19 @@ __attribute__((regparm(1)))
 #endif
 void do_handle_exception(struct ex_regs *regs)
 {
-	if (regs->vector < 32 && exception_handlers[regs->vector]) {
-		exception_handlers[regs->vector](regs);
+	handler *handlers = exception_handlers;
+
+#ifdef __x86_64__
+	/*
+	 * Get the table's address RIP-relatively so that dispatch follows the
+	 * mapping it's executing from, e.g. x86/lass.c runs the image from an
+	 * alias in the supervisor half.
+	 */
+	asm ("lea exception_handlers(%%rip), %0" : "=r" (handlers));
+#endif
+
+	if (regs->vector < 32 && handlers[regs->vector]) {
+		handlers[regs->vector](regs);
 		return;
 	}
 	unhandled_exception(regs, true);
